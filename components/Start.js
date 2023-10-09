@@ -32,17 +32,35 @@ const Start = ({ navigation }) => {
               <TouchableOpacity
                 key={index}
                 style={[
-                  styles.colorOption,
-                  { backgroundColor: color },
+                  {
+                    borderRadius: "50%",
+                    borderColor: "#FFFFFF",
+                    borderWidth: 2,
+                  },
                   selectedColor === color && styles.selectedColorOption,
                 ]}
                 onPress={() => setSelectedColor(color)}
-              />
+              >
+                <View
+                  style={[
+                    styles.colorOption,
+                    {
+                      backgroundColor: color,
+                      margin: 2,
+                    },
+                  ]}
+                ></View>
+              </TouchableOpacity>
             ))}
           </View>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate("Chat", { name: name })}
+            onPress={() =>
+              navigation.navigate("Chat", {
+                name: name,
+                backgroundColor: selectedColor,
+              })
+            }
           >
             <Text style={styles.buttonText}>Start Chatting</Text>
           </TouchableOpacity>
