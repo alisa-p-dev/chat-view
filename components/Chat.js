@@ -1,82 +1,70 @@
 import { useState, useEffect } from "react";
+import { StyleSheet, View, KeyboardAvoidingView, Platform } from "react-native";
+import { Bubble, GiftedChat, InputToolbar } from "react-native-gifted-chat";
 import {
-  StyleSheet,
-  View,
-  FlatList,
-  Text,
-  TextInput,
-  KeyboardAvoidingView,
-  TouchableOpacity,
-  Alert,
-  Platform,
-} from "react-native";
-import { Bubble, GiftedChat } from "react-native-gifted-chat";
-import { collection, addDoc, onSnapshot } from "firebase/firestore";
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+} from "firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const Chat = ({ db, route, navigation }) => {
+const Chat = ({ db, route, navigation, isConnected }) => {
   const [messages, setMessages] = useState([]);
   const { name, _id, backgroundColor } = route.params;
+  const loadCachedMessages = async () => {
+    const cachedMessages = (await AsyncStorage.getItem("messages")) || "[]";
+    setMessages(JSON.parse(cachedMessages));
+  };
+
+  let unsubMessages;
 
   useEffect(() => {
     navigation.setOptions({ title: name });
   }, []);
 
   useEffect(() => {
-    const unsubMessages = onSnapshot(
-      collection(db, "messages"),
-      (querySnapshot) => {
-        const newMessages = querySnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            _id: doc.id,
-            text: data.text,
-            createdAt: data.createdAt.toDate(),
-            user: {
-              _id: data.user._id,
-              name: data.user.name,
-              avatar: data.user.avatar,
-            },
-          };
-        });
+    if (isConnected === true) {
+      if (unsubMessages) unsubMessages();
+      unsubMessages = null;
 
-        // Sort messages by createdAt in descending order
-        newMessages.sort((a, b) => b.createdAt - a.createdAt);
+      const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
+      unsubMessages = onSnapshot(q, (documentsSnapshot) => {
+        let newMessages = [];
+        documentsSnapshot.forEach((doc) => {
+          newMessages.push({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: new Date(doc.data().createdAt.toDate()), // convert createdAt to Date object })
+          });
+        });
+        cachedMessages(newMessages);
         setMessages(newMessages);
-      }
-    );
+      });
+    } else loadCachedMessages();
 
     // Clean up code
     return () => {
       if (unsubMessages) unsubMessages();
     };
-  }, [db]);
+  }, [isConnected]);
 
+  const cachedMessages = async (messagesToCache) => {
+    try {
+      await AsyncStorage.setItem("messages", JSON.stringify(messagesToCache));
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
   const onSend = (newMessages) => {
-    // Assuming the current user's ID is stored in a variable like currentUserId
-    const currentUserId = _id;
+    addDoc(collection(db, "messages"), newMessages[0]);
+  };
 
-    const outgoingMessages = newMessages.map((message) => {
-      return {
-        _id: message._id,
-        text: message.text,
-        createdAt: message.createdAt,
-        user: {
-          _id: currentUserId, // Set the sender's _id
-          name: name, // Set the sender's name
-        },
-      };
-    });
-
-    // Add the outgoing messages to the state
-    setMessages((previousMessages) => [
-      ...previousMessages,
-      ...outgoingMessages,
-    ]);
-
-    // Send the outgoing messages to the database
-    outgoingMessages.forEach((message) => {
-      addDoc(collection(db, "messages"), message);
-    });
+  const renderInputToolbar = (props) => {
+    // renderInputToolbar function
+    if (isConnected) return <InputToolbar {...props} />;
+    else return null;
   };
 
   const renderBubble = (props) => {
@@ -105,6 +93,7 @@ const Chat = ({ db, route, navigation }) => {
           _id: _id,
           name: name,
         }}
+        renderInputToolbar={renderInputToolbar}
       />
       {Platform.OS === "android" ? (
         <KeyboardAvoidingView behavior="height" />
