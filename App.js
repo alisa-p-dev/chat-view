@@ -1,5 +1,6 @@
+import { getStorage } from "firebase/storage";
 import { StyleSheet, Text, View, LogBox, Alert } from "react-native";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 // import the screens
 import Start from "./components/Start";
 import Chat from "./components/Chat";
@@ -46,7 +47,7 @@ const App = () => {
 
   // Initialize Cloud Firestore and get a reference to the service
   const db = getFirestore(app);
-
+  const storage = getStorage(app);
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Start">
@@ -56,6 +57,7 @@ const App = () => {
             <Chat
               isConnected={connectionStatus.isConnected}
               db={db}
+              storage={storage}
               {...props}
             />
           )}
